@@ -7,7 +7,6 @@ const { validateName, validateEmail, validateMobileNo, validatePassword, validat
 
 
 
-const bcrypt = require('bcrypt');
 
 const registerUser = async function (req, res) {
     try {
