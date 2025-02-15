@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt.js");
+const bcrypt = require("bcryptjs");
 const { default: mongoose } = require("mongoose");
 
 const userModel = require("../Models/userModel");
