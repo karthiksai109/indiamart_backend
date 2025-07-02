@@ -46,10 +46,7 @@ const registerUser = async function (req, res) {
         else if(!address){
             return res.status(400).send({status:false,message:'please enter address'})
         }
-       
-        // Validations here (skipped for brevity)
-
-        // Hash the password before saving
+     
         const hashedPassword = bcrypt.hashSync(password, 10);
         body.password = hashedPassword;
 
@@ -70,6 +67,7 @@ const login = async function (req, res) {
     try {
         res.setHeader("Access-Control-Allow-Origin", "*");
         const { email, password } = req.body;
+        
 
         if (!email || typeof email !== "string" || !validateEmail(email.trim())) {
             return res.status(400).send({ status: false, message: "Please enter a valid Email." });
@@ -123,6 +121,7 @@ const getUser = async function (req, res) {
         res.status(500).send({ status: false, message: err.message });
     }
 };
+
 
 
 
@@ -194,40 +193,7 @@ const updateUsers = async (req, res) => {
             user.password = bcrypt.hashSync(password.trim(), 10);
         }
 
-        // Validate and update address
-        if (address) {
-            if (typeof address !== "object") {
-                return res.status(400).send({ status: false, message: "Address must be an object." });
-            }
-            const { shipping, billing } = address;
-
-            if (shipping) {
-                if (shipping.street && typeof shipping.street !== "string") {
-                    return res.status(400).send({ status: false, message: "Invalid shipping street." });
-                }
-                if (shipping.city && (typeof shipping.city !== "string" || !validatePlace(shipping.city.trim()))) {
-                    return res.status(400).send({ status: false, message: "Invalid shipping city." });
-                }
-                if (shipping.pincode && !validatePincode(shipping.pincode.trim())) {
-                    return res.status(400).send({ status: false, message: "Invalid shipping pincode." });
-                }
-                user.address.shipping = { ...user.address.shipping, ...shipping };
-            }
-
-            if (billing) {
-                if (billing.street && typeof billing.street !== "string") {
-                    return res.status(400).send({ status: false, message: "Invalid billing street." });
-                }
-                if (billing.city && (typeof billing.city !== "string" || !validatePlace(billing.city.trim()))) {
-                    return res.status(400).send({ status: false, message: "Invalid billing city." });
-                }
-                if (billing.pincode && !validatePincode(billing.pincode.trim())) {
-                    return res.status(400).send({ status: false, message: "Invalid billing pincode." });
-                }
-                user.address.billing = { ...user.address.billing, ...billing };
-            }
-        }
-
+       
         const updatedUser = await user.save();
 
         res.status(200).send({
@@ -243,4 +209,46 @@ const updateUsers = async (req, res) => {
 
 
 
-module.exports = { registerUser, updateUsers, getUser, login };
+
+
+
+
+
+const updateOrders = async function (req, res) {
+    try {
+        const userId = req.params.userId;
+
+        if (!mongoose.isValidObjectId(userId)) {
+            return res.status(400).send({ status: false, message: "Invalid user Id." });
+        }
+
+        if (!req.token || userId !== req.token) {
+            return res.status(403).send({ status: false, message: "You are not authorized to access this resource." });
+        }
+
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(404).send({ status: false, message: "User not found." });
+        }
+
+        // Increment orders by 1 in DB
+        const updatedUser = await userModel.findByIdAndUpdate(
+            userId,
+            { $inc: { orders: 1 } },
+            { new: true } // Return the updated document
+        );
+        console.log(updatedUser.orders)
+
+        return res.status(200).send({
+            status: true,
+            message: "User order count updated successfully",
+            data: { userId: updatedUser._id, orders: updatedUser.orders }
+        });
+
+    } catch (err) {
+        return res.status(500).send({ status: false, message: err.message });
+    }
+};
+
+
+module.exports = { registerUser, updateUsers, getUser, login,updateOrders };

@@ -28,6 +28,10 @@ const userSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    orders:{
+        type:Number,
+        default:0
+    },
     budget: { type: Number, default: 0 }, // New budget field
 
 

@@ -5,13 +5,15 @@ const userModel = require("../Models/userModel");
 const router = express.Router();
 const Product=require('../Models/productModel')
 const Cart=require('../Models/cartModel')
-const { registerUser, getUser, updateUsers, login } = require('../Controllers/userController');
+const { registerUser, getUser, updateUsers, login, updateOrders } = require('../Controllers/userController');
 const{isAuthentication}=require('../Middlewares/commonMiddleware')
 
 //=======APIs for User=========
 router.post("/register",  registerUser);
 router.post("/login", login);
 router.get('/user/:userId/profile', isAuthentication, getUser);
+router.put('/user/:userId/updateOrders',isAuthentication, updateOrders)
+router.put('/user/:userId/profile', isAuthentication, updateUsers);
 
 //==========API for Products======
 var user=[]
@@ -203,44 +205,96 @@ router.get('/user/:userId/cart/check-budget', isAuthentication, async (req, res)
         res.status(500).json({ message: "Error validating cart against budget", error: error.message });
     }
 });
-router.post('/budget-check', async (req, res) => {
+// router.post('/budget-check', async (req, res) => {
+//     try {
+//         const { budget, items } = req.body;
+
+//         if (!budget || !Array.isArray(items) || items.length === 0) {
+//             return res.status(400).json({ message: "Budget and item list are required" });
+//         }
+
+//         const products = await Product.find({ name: { $in: items } });
+//         const availableItems = [];
+//         const missingItems = [];
+//         let totalCost = 0;
+
+//         items.forEach(item => {
+//             const product = products.find(p => p.name.toLowerCase() === item.toLowerCase());
+//             if (product) {
+//                 if (totalCost + product.price <= budget) {
+//                     availableItems.push(product);
+//                     totalCost += product.price;
+//                 }
+//             } else {
+//                 missingItems.push(item);
+//             }
+//         });
+
+//         res.status(200).json({
+//             availableItems,
+//             missingItems,
+//             totalCost,
+//             budget,
+//             withinBudget: totalCost <= budget
+//         });
+//     } catch (error) {
+//         res.status(500).json({ message: "Error checking budget", error: error.message });
+//     }
+// });
+
+router.post('/user/:userId/budget-plan', async (req, res) => {
     try {
-        const { budget, items } = req.body;
-
-        if (!budget || !Array.isArray(items) || items.length === 0) {
-            return res.status(400).json({ message: "Budget and item list are required" });
+      const { budget } = req.body;
+      const products = await Product.find(); // assume Product is your model
+  
+      // sort by price ascending
+      products.sort((a, b) => a.price - b.price);
+  
+      const generatePlans = () => {
+        const plans = [];
+  
+        // Plan 1: Max items within budget
+        let plan1 = [], sum1 = 0;
+        for (const p of products) {
+          if (sum1 + p.price <= budget) {
+            plan1.push(p);
+            sum1 += p.price;
+          }
         }
-
-        const products = await Product.find({ name: { $in: items } });
-        const availableItems = [];
-        const missingItems = [];
-        let totalCost = 0;
-
-        items.forEach(item => {
-            const product = products.find(p => p.name.toLowerCase() === item.toLowerCase());
-            if (product) {
-                if (totalCost + product.price <= budget) {
-                    availableItems.push(product);
-                    totalCost += product.price;
-                }
-            } else {
-                missingItems.push(item);
+        plans.push(plan1);
+  
+        // Plan 2: Items with highest value close to budget
+        let bestPlan = [];
+        const n = products.length;
+        for (let i = 0; i < (1 << n); i++) {
+          let plan = [], total = 0;
+          for (let j = 0; j < n; j++) {
+            if (i & (1 << j)) {
+              if (total + products[j].price <= budget) {
+                total += products[j].price;
+                plan.push(products[j]);
+              }
             }
-        });
-
-        res.status(200).json({
-            availableItems,
-            missingItems,
-            totalCost,
-            budget,
-            withinBudget: totalCost <= budget
-        });
-    } catch (error) {
-        res.status(500).json({ message: "Error checking budget", error: error.message });
+          }
+          if (total > bestPlan.reduce((s, p) => s + p.price, 0)) {
+            bestPlan = plan;
+          }
+        }
+        plans.push(bestPlan);
+  
+        // Plan 3: Add your own logic e.g. by category balance
+  
+        return plans;
+      };
+  
+      const resultPlans = generatePlans();
+  
+      res.status(200).json({ status: true, plans: resultPlans });
+    } catch (err) {
+      res.status(500).json({ status: false, message: err.message });
     }
-});
-
-
+  });
+  
 
 
 module.exports = router
