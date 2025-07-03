@@ -217,6 +217,7 @@ const updateUsers = async (req, res) => {
 const updateOrders = async function (req, res) {
     try {
         const userId = req.params.userId;
+        console.log(userId)
 
         if (!mongoose.isValidObjectId(userId)) {
             return res.status(400).send({ status: false, message: "Invalid user Id." });
